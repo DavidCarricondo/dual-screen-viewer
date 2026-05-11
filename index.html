@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GM Control Panel</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <div id="app">
+      <!-- Toolbar -->
+      <div id="toolbar">
+        <div class="toolbar-group">
+          <button id="btn-add-image" title="Add Image Layer">🖼 Image</button>
+          <button id="btn-add-grid" title="Add Grid Layer">⊞ Grid</button>
+          <button id="btn-add-fog" title="Add Fog of War">🌫 Fog</button>
+        </div>
+        <div class="toolbar-separator"></div>
+        <div class="toolbar-group">
+          <button id="btn-tool-select" class="tool-btn active" title="Select Tool (V)">⬚ Select</button>
+          <button id="btn-tool-fog" class="tool-btn" title="Fog Brush (F)">🖌 Fog Brush</button>
+          <button id="btn-tool-measure" class="tool-btn" title="Measure (M)">📏 Measure</button>
+        </div>
+        <div id="fog-controls" class="toolbar-group" style="display:none">
+          <label>Brush: <span id="fog-brush-label">30</span>px</label>
+          <input id="fog-brush-size" type="range" min="5" max="200" value="30">
+        </div>
+        <div class="toolbar-group">
+          <label>Grid size:</label>
+          <input id="grid-cell-size" type="number" value="50" min="10" max="500" style="width:60px">
+          <span>px</span>
+        </div>
+        <div class="toolbar-separator"></div>
+        <div class="toolbar-group">
+          <button id="btn-open-secondary" title="Open Player Display">🖥 Player Display</button>
+          <button id="btn-save" title="Save Session (Ctrl+S)">💾 Save</button>
+          <button id="btn-load" title="Load Session">📂 Load</button>
+        </div>
+      </div>
+
+      <!-- Main content area -->
+      <div id="main-content">
+        <!-- Preview canvas -->
+        <div id="preview-container">
+          <canvas id="preview-canvas"></canvas>
+        </div>
+
+        <!-- Layer panel sidebar -->
+        <div id="layer-panel-container"></div>
+      </div>
+
+      <!-- Status bar -->
+      <div id="status-bar">
+        <span id="status-tool">Tool: Select</span>
+        <span id="status-info">Shortcuts: V=Select F=Fog M=Measure G=Grid Esc=Cancel Ctrl+Z=Undo fog Del=Delete layer</span>
+      </div>
+    </div>
+  </body>
+</html>
