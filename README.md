@@ -1,3 +1,7 @@
+## Short project description:
+
+Dual Screen Viewer is a lightweight, fully local Windows app for tabletop RPG game masters, built with Tauri + TypeScript. It provides a GM control window and a player display window with synchronized scene rendering, layer management (image/grid/fog), fog-of-war painting with undo, measurement tools, and session save/load.
+
 
 **Project structure** — 12 source files across Rust and TypeScript:
 
