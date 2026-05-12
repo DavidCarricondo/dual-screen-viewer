@@ -1,4 +1,4 @@
-import { listen } from '@tauri-apps/api/event';
+import { listen, emit } from '@tauri-apps/api/event';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { SessionState, ImageLayer, GridLayer, FogLayer, ErasedStroke } from './types';
 import { renderGrid } from './grid';
@@ -197,7 +197,7 @@ function renderCurrentScene(): void {
 }
 
 // Listen for scene updates from primary window
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   canvas = document.getElementById('scene-canvas') as HTMLCanvasElement;
   ctx = canvas.getContext('2d')!;
 
@@ -207,47 +207,48 @@ window.addEventListener('DOMContentLoaded', () => {
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  listen<string>('scene:update', (event) => {
-    try {
-      const session = JSON.parse(event.payload) as SessionState;
+  try {
+    await listen<string>('scene:update', (event) => {
+      try {
+        const session = JSON.parse(event.payload) as SessionState;
 
-      // Restore asset URLs for image layers
-      for (const layer of session.layers) {
-        if (layer.type === 'image') {
-          const imgLayer = layer as ImageLayer;
-          if (imgLayer.filePath && (!imgLayer.src || !imgLayer.src.startsWith('http'))) {
-            imgLayer.src = convertFileSrc(imgLayer.filePath);
+        // Restore asset URLs for image layers
+        for (const layer of session.layers) {
+          if (layer.type === 'image') {
+            const imgLayer = layer as ImageLayer;
+            if (imgLayer.filePath && (!imgLayer.src || !imgLayer.src.startsWith('http'))) {
+              imgLayer.src = convertFileSrc(imgLayer.filePath);
+            }
           }
         }
+
+        currentSession = session;
+        renderCurrentScene();
+      } catch (e) {
+        console.error('Failed to parse scene update:', e);
       }
+    });
 
-      currentSession = session;
-      renderCurrentScene();
-    } catch (e) {
-      console.error('Failed to parse scene update:', e);
-    }
-  });
+    // Listen for live fog deltas during brush stroke
+    await listen<string>('fog:delta', (event) => {
+      try {
+        const delta = JSON.parse(event.payload) as { points: Array<{ x: number; y: number }>; radius: number };
+        if (fogCtx && fogCanvas) {
+          fogCtx.globalCompositeOperation = 'destination-out';
+          fogCtx.fillStyle = 'rgba(0,0,0,1)';
 
-  // Listen for live fog deltas during brush stroke
-  listen<string>('fog:delta', (event) => {
-    try {
-      const delta = JSON.parse(event.payload) as { points: Array<{ x: number; y: number }>; radius: number };
-      if (fogCtx && fogCanvas) {
-        fogCtx.globalCompositeOperation = 'destination-out';
-        fogCtx.fillStyle = 'rgba(0,0,0,1)';
+          for (const point of delta.points) {
+            fogCtx.beginPath();
+            fogCtx.arc(point.x, point.y, delta.radius, 0, Math.PI * 2);
+            fogCtx.fill();
+          }
 
-        for (const point of delta.points) {
-          fogCtx.beginPath();
-          fogCtx.arc(point.x, point.y, delta.radius, 0, Math.PI * 2);
-          fogCtx.fill();
-        }
-
-        if (delta.points.length > 1) {
-          fogCtx.lineWidth = delta.radius * 2;
-          fogCtx.lineCap = 'round';
-          fogCtx.lineJoin = 'round';
-          fogCtx.beginPath();
-          fogCtx.moveTo(delta.points[0].x, delta.points[0].y);
+          if (delta.points.length > 1) {
+            fogCtx.lineWidth = delta.radius * 2;
+            fogCtx.lineCap = 'round';
+            fogCtx.lineJoin = 'round';
+            fogCtx.beginPath();
+            fogCtx.moveTo(delta.points[0].x, delta.points[0].y);
           for (let i = 1; i < delta.points.length; i++) {
             fogCtx.lineTo(delta.points[i].x, delta.points[i].y);
           }
@@ -261,4 +262,10 @@ window.addEventListener('DOMContentLoaded', () => {
       // ignore
     }
   });
+
+    // Signal to primary that listeners are ready
+    await emit('secondary:ready');
+  } catch (e) {
+    console.error('Failed to set up secondary window listeners:', e);
+  }
 });
