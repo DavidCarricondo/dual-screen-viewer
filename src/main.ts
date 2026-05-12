@@ -1,15 +1,14 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { store } from './store';
 import { broadcastSceneUpdate, broadcastFogDelta } from './events';
-import { renderScene, clearImageCache } from './renderer';
+import { renderScene, clearImageCache, getHandleAtPoint } from './renderer';
 import { FogSystem } from './fog';
 import { createLayerPanel } from './LayerPanel';
 import { handleTransformMouseDown, handleTransformMouseMove, handleTransformMouseUp, getHandleCursor } from './handles';
 import { handleMeasureMouseDown, handleMeasureMouseMove, handleMeasureMouseUp } from './measurement';
 import { ImageLayer, GridLayer, FogLayer, Layer } from './types';
-import { getHandleAtPoint } from './renderer';
 import './styles.css';
 
 let fogSystem: FogSystem | null = null;
@@ -275,6 +274,7 @@ async function toggleSecondaryWindow(): Promise<void> {
       width: Math.min(session.canvasWidth, 1280),
       height: Math.min(session.canvasHeight, 720),
     });
+    scheduleRender();
     return;
   }
 
@@ -286,6 +286,7 @@ async function toggleSecondaryWindow(): Promise<void> {
     width: secondary.width,
     height: secondary.height,
   });
+  scheduleRender();
 }
 
 function setupCanvasInteraction(): void {
@@ -561,6 +562,11 @@ window.addEventListener('DOMContentLoaded', () => {
   store.subscribe(() => {
     scheduleRender();
     layerPanel.update();
+  });
+
+  // When secondary window signals it's ready, send current scene state
+  listen('secondary:ready', () => {
+    broadcastSceneUpdate(store.getSession());
   });
 
   setupToolbar();
