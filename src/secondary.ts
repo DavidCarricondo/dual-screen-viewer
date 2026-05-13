@@ -209,6 +209,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   try {
     await listen<string>('scene:update', (event) => {
+      console.log('[Secondary] Received scene:update');
       try {
         const session = JSON.parse(event.payload) as SessionState;
 

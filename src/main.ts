@@ -17,6 +17,10 @@ let previewCtx: CanvasRenderingContext2D;
 let renderDirty = true;
 let layerPanel: { update: () => void };
 
+// Throttling for secondary window updates
+let lastBroadcastTime = 0;
+let broadcastTimeout: ReturnType<typeof setTimeout> | null = null;
+
 // Fog brush state
 let fogBrushing = false;
 let currentFogStroke: Array<{ x: number; y: number }> = [];
@@ -63,8 +67,22 @@ function renderLoop(): void {
 
     previewCtx.restore();
 
-    // Broadcast to secondary
-    broadcastSceneUpdate(session);
+    // Broadcast to secondary throttled (max ~20fps / 50ms)
+    const now = performance.now();
+    if (now - lastBroadcastTime >= 50) {
+      broadcastSceneUpdate(session);
+      lastBroadcastTime = now;
+      if (broadcastTimeout) {
+        clearTimeout(broadcastTimeout);
+        broadcastTimeout = null;
+      }
+    } else if (!broadcastTimeout) {
+      broadcastTimeout = setTimeout(() => {
+        broadcastSceneUpdate(store.getSession());
+        lastBroadcastTime = performance.now();
+        broadcastTimeout = null;
+      }, 50 - (now - lastBroadcastTime));
+    }
   }
   requestAnimationFrame(renderLoop);
 }

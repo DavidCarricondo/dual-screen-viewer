@@ -143,12 +143,13 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .on_window_event(|window, event| {
-            if let WindowEvent::Destroyed = event {
-                if window.label() == "primary" {
-                    if let Some(secondary) = window.app_handle().get_webview_window("secondary") {
-                        let _ = secondary.destroy();
+            match event {
+                WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
+                    if window.label() == "primary" {
+                        window.app_handle().exit(0);
                     }
                 }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
