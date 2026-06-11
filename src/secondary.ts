@@ -1,5 +1,6 @@
 import { listen, emit } from '@tauri-apps/api/event';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SessionState, ImageLayer, GridLayer, FogLayer, ErasedStroke } from './types';
 import { renderGrid } from './grid';
 
@@ -200,6 +201,13 @@ function renderCurrentScene(): void {
 window.addEventListener('DOMContentLoaded', async () => {
   canvas = document.getElementById('scene-canvas') as HTMLCanvasElement;
   ctx = canvas.getContext('2d')!;
+
+  // The window has no decorations, so allow closing it with Escape
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      getCurrentWindow().close();
+    }
+  });
 
   // Initial black canvas render so it's never white
   canvas.width = window.innerWidth;

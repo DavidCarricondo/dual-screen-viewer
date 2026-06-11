@@ -19,8 +19,9 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
     const selectedId = store.getState().selectedLayerId;
 
     listEl.innerHTML = '';
-    for (const layer of layers) {
-      const row = createLayerRow(layer, layer.id === selectedId);
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i];
+      const row = createLayerRow(layer, layer.id === selectedId, i === 0, i === layers.length - 1);
       listEl.appendChild(row);
     }
   }
@@ -28,7 +29,7 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
   // Drag and drop reorder
   let draggedId: string | null = null;
 
-  function createLayerRow(layer: Layer, selected: boolean): HTMLElement {
+  function createLayerRow(layer: Layer, selected: boolean, isTop: boolean, isBottom: boolean): HTMLElement {
     const row = document.createElement('div');
     row.className = `layer-row ${selected ? 'selected' : ''} ${layer.locked ? 'locked' : ''}`;
     row.dataset.layerId = layer.id;
@@ -40,6 +41,8 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
       <span class="layer-icon">${icon}</span>
       <span class="layer-name">${escapeHtml(layer.name)}</span>
       <div class="layer-controls">
+        <button class="layer-btn up-btn" title="Bring forward" ${isTop ? 'disabled' : ''}>▲</button>
+        <button class="layer-btn down-btn" title="Send backward" ${isBottom ? 'disabled' : ''}>▼</button>
         <button class="layer-btn vis-btn" title="${layer.visible ? 'Hide' : 'Show'}">${layer.visible ? '👁' : '—'}</button>
         <button class="layer-btn lock-btn" title="${layer.locked ? 'Unlock' : 'Lock'}">${layer.locked ? '🔒' : '🔓'}</button>
         <input type="range" class="opacity-slider" min="0" max="100" value="${Math.round(layer.opacity * 100)}" title="Opacity">
@@ -51,6 +54,17 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
     row.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.layer-controls')) return;
       store.selectLayer(layer.id);
+    });
+
+    // Move forward / backward in stacking order
+    row.querySelector('.up-btn')!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.moveLayer(layer.id, 1);
+    });
+
+    row.querySelector('.down-btn')!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.moveLayer(layer.id, -1);
     });
 
     // Visibility toggle

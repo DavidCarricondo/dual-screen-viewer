@@ -203,6 +203,12 @@ html, body {
   background: #45475a;
 }
 
+.layer-btn:disabled {
+  color: #585b70;
+  cursor: default;
+  background: none;
+}
+
 .layer-btn.del-btn:hover {
   background: #f38ba8;
   color: #1e1e2e;

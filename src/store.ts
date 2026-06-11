@@ -90,6 +90,17 @@ class StateStore {
     this.notify();
   }
 
+  // Move a layer forward (+1) or backward (-1) in the stacking order
+  moveLayer(id: string, delta: 1 | -1): void {
+    const ordered = this.getLayers(); // bottom-first
+    const idx = ordered.findIndex(l => l.id === id);
+    const target = idx + delta;
+    if (idx === -1 || target < 0 || target >= ordered.length) return;
+    [ordered[idx], ordered[target]] = [ordered[target], ordered[idx]];
+    ordered.forEach((layer, i) => { layer.zIndex = i; });
+    this.notify();
+  }
+
   // Selection
   selectLayer(id: string | null): void {
     this.state.selectedLayerId = id;

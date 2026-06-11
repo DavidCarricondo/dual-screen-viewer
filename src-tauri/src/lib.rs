@@ -51,8 +51,10 @@ fn get_monitors(app: tauri::AppHandle) -> Vec<MonitorInfo> {
     monitors
 }
 
+// Must be async: building a webview window from a sync command deadlocks
+// the main thread (the window stays white and the app freezes).
 #[tauri::command]
-fn open_secondary_window(app: tauri::AppHandle, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
+async fn open_secondary_window(app: tauri::AppHandle, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
     // Check if secondary already exists
     if app.get_webview_window("secondary").is_some() {
         return Ok(());
