@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::webview::Color;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct MonitorInfo {
@@ -50,8 +51,10 @@ fn get_monitors(app: tauri::AppHandle) -> Vec<MonitorInfo> {
     monitors
 }
 
+// Must be async: building a webview window from a sync command deadlocks
+// the main thread (the window stays white and the app freezes).
 #[tauri::command]
-fn open_secondary_window(app: tauri::AppHandle, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
+async fn open_secondary_window(app: tauri::AppHandle, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
     // Check if secondary already exists
     if app.get_webview_window("secondary").is_some() {
         return Ok(());
@@ -67,6 +70,7 @@ fn open_secondary_window(app: tauri::AppHandle, x: i32, y: i32, width: u32, heig
     .inner_size(width as f64, height as f64)
     .decorations(false)
     .resizable(false)
+    .background_color(Color(26, 26, 46, 255))
     .build()
     .map_err(|e| e.to_string())?;
 
@@ -140,6 +144,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .on_window_event(|window, event| {
+            if let WindowEvent::Destroyed = event {
+                if window.label() == "primary" {
+                    if let Some(secondary) = window.app_handle().get_webview_window("secondary") {
+                        let _ = secondary.destroy();
+                    }
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             get_monitors,
             open_secondary_window,
