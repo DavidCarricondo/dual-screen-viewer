@@ -118,14 +118,13 @@ function renderCurrentScene(): void {
         const imgLayer = layer as ImageLayer;
         const img = getOrLoadImage(imgLayer);
         if (img) {
+          const w = imgLayer.naturalWidth * imgLayer.scaleX;
+          const h = imgLayer.naturalHeight * imgLayer.scaleY;
           ctx.save();
           ctx.globalAlpha = imgLayer.opacity;
-          ctx.drawImage(
-            img,
-            imgLayer.x, imgLayer.y,
-            imgLayer.naturalWidth * imgLayer.scaleX,
-            imgLayer.naturalHeight * imgLayer.scaleY,
-          );
+          ctx.translate(imgLayer.x + w / 2, imgLayer.y + h / 2);
+          ctx.rotate(imgLayer.rotation || 0);
+          ctx.drawImage(img, -w / 2, -h / 2, w, h);
           ctx.restore();
         }
         break;
@@ -206,6 +205,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       getCurrentWindow().close();
+    }
+  });
+
+  // No decorations: drag anywhere to move the window,
+  // double-click to toggle fullscreen
+  canvas.addEventListener('mousedown', async (e) => {
+    if (e.button !== 0) return;
+    const win = getCurrentWindow();
+    if (e.detail === 2) {
+      await win.setFullscreen(!(await win.isFullscreen()));
+    } else {
+      await win.startDragging();
     }
   });
 

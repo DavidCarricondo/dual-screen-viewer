@@ -15,7 +15,7 @@ Dual Screen Viewer is a lightweight, fully local Windows app for tabletop RPG ga
 | renderer.ts | Canvas renderer: draws layers, grid, fog, measurement overlay, selection handles |
 | fog.ts | `FogSystem` — OffscreenCanvas with `destination-out` erasing, PNG export |
 | grid.ts | Grid line renderer |
-| handles.ts | Transform handles: drag to move, corner drag to scale with Shift for aspect lock |
+| handles.ts | Transform handles: drag to move, corner drag to scale with Shift for aspect lock, rotation handle with Shift for 15° snapping |
 | measurement.ts | Measurement tool: persistent line, distance in feet (1 square = 5 ft) |
 | LayerPanel.ts | Layer panel UI: drag reorder, visibility/lock/opacity/delete controls |
 | main.ts | Primary window entry: toolbar, canvas interaction, keyboard shortcuts, save/load |
@@ -29,6 +29,8 @@ npm run tauri build   # production .exe
 ```
 
 **Keyboard shortcuts:** `V`=Select, `F`=Fog brush, `M`=Measure, `G`=Toggle grid, `Escape`=Cancel/clear measurement, `Ctrl+Z`=Undo fog stroke, `Ctrl+S`=Save, `Delete`=Remove selected layer.
+
+**Player window controls:** click and hold anywhere to drag the window around, double-click to toggle fullscreen, `Escape` to close it.
 
 ## Testing
 
@@ -81,6 +83,9 @@ This launches:
 - [ ] **Move**: Drag center of bounding box → image moves, secondary shows live update
 - [ ] **Scale**: Drag corner handle → image scales, opposite corner anchors
 - [ ] **Scale with Shift**: Hold Shift while dragging corner → maintains aspect ratio
+- [ ] **Rotate**: Drag circular handle above the box → image rotates around its center on both screens
+- [ ] **Rotate with Shift**: Hold Shift while rotating → snaps to 15° increments
+- [ ] **Scale while rotated**: Drag a handle on a rotated image → opposite edge stays anchored
 - [ ] Transforms don't work if layer is locked
 
 ### Phase 5: Fog of War
@@ -119,7 +124,8 @@ This launches:
 ### Phase 9: Dual Monitor Setup
 - [ ] **Two monitors**: Primary window appears on main monitor, Player Display on secondary
 - [ ] **One monitor**: Player Display opens as separate window (offset from primary)
-- [ ] **Fullscreen mode**: Manually move Player Display window to fullscreen on secondary
+- [ ] **Move window**: Click and hold on Player Display → drag moves the window
+- [ ] **Fullscreen mode**: Double-click on Player Display → toggles fullscreen on/off
 - [ ] **Resolution independence**: Preview canvas scales correctly regardless of monitor resolutions
 
 ### Phase 10: Edge Cases

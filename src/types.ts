@@ -18,6 +18,7 @@ export interface ImageLayer extends BaseLayer {
   y: number;
   scaleX: number;
   scaleY: number;
+  rotation: number; // radians, around image center
   naturalWidth: number;
   naturalHeight: number;
 }
