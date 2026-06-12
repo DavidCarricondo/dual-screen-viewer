@@ -3,7 +3,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { listen } from '@tauri-apps/api/event';
 import { store } from './store';
 import { broadcastSceneUpdate, broadcastFogDelta } from './events';
-import { renderScene, clearImageCache, getHandleAtPoint } from './renderer';
+import { renderScene, clearImageCache, getHandleAtPoint, sceneToLayerLocal } from './renderer';
 import { FogSystem } from './fog';
 import { createLayerPanel } from './LayerPanel';
 import { handleTransformMouseDown, handleTransformMouseMove, handleTransformMouseUp, getHandleCursor } from './handles';
@@ -78,7 +78,8 @@ function hitTestLayers(sceneX: number, sceneY: number): Layer | null {
       const img = layer as ImageLayer;
       const w = img.naturalWidth * img.scaleX;
       const h = img.naturalHeight * img.scaleY;
-      if (sceneX >= img.x && sceneX <= img.x + w && sceneY >= img.y && sceneY <= img.y + h) {
+      const { lx, ly } = sceneToLayerLocal(img, sceneX, sceneY);
+      if (Math.abs(lx) <= w / 2 && Math.abs(ly) <= h / 2) {
         return layer;
       }
     }
@@ -123,6 +124,7 @@ async function addImageLayer(): Promise<void> {
       y: 0,
       scaleX: 1,
       scaleY: 1,
+      rotation: 0,
       naturalWidth: img.naturalWidth,
       naturalHeight: img.naturalHeight,
     };
@@ -218,8 +220,12 @@ async function loadSession(): Promise<void> {
 
   // Restore image asset URLs
   for (const layer of session.layers) {
-    if (layer.type === 'image' && layer.filePath) {
-      layer.src = convertFileSrc(layer.filePath);
+    if (layer.type === 'image') {
+      if (layer.filePath) {
+        layer.src = convertFileSrc(layer.filePath);
+      }
+      // Sessions saved before rotation support lack this field
+      layer.rotation = layer.rotation ?? 0;
     }
   }
 

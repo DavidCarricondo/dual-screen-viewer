@@ -77,15 +77,14 @@ function renderImageLayer(ctx: CanvasRenderingContext2D, layer: ImageLayer): voi
   const img = getOrLoadImage(layer);
   if (!img) return;
 
+  const w = layer.naturalWidth * layer.scaleX;
+  const h = layer.naturalHeight * layer.scaleY;
+
   ctx.save();
   ctx.globalAlpha = layer.opacity;
-  ctx.drawImage(
-    img,
-    layer.x,
-    layer.y,
-    layer.naturalWidth * layer.scaleX,
-    layer.naturalHeight * layer.scaleY,
-  );
+  ctx.translate(layer.x + w / 2, layer.y + h / 2);
+  ctx.rotate(layer.rotation || 0);
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
   ctx.restore();
 }
 
@@ -150,35 +149,67 @@ function renderMeasurement(ctx: CanvasRenderingContext2D, m: MeasurementState, l
   ctx.restore();
 }
 
+export const ROTATE_HANDLE_OFFSET = 30;
+
 function renderSelectionHandles(ctx: CanvasRenderingContext2D, layer: ImageLayer): void {
   const w = layer.naturalWidth * layer.scaleX;
   const h = layer.naturalHeight * layer.scaleY;
-  const x = layer.x;
-  const y = layer.y;
   const handleSize = 8;
 
   ctx.save();
+  // Draw in the image's local (unrotated) frame, centered on the image
+  ctx.translate(layer.x + w / 2, layer.y + h / 2);
+  ctx.rotate(layer.rotation || 0);
+
   ctx.strokeStyle = '#00aaff';
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 4]);
 
   // Bounding box
-  ctx.strokeRect(x, y, w, h);
+  ctx.strokeRect(-w / 2, -h / 2, w, h);
 
-  // Handles
+  // Stem to rotation handle
   ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(0, -h / 2);
+  ctx.lineTo(0, -h / 2 - ROTATE_HANDLE_OFFSET);
+  ctx.stroke();
+
+  // Scale handles
   ctx.fillStyle = '#00aaff';
   const handles = [
-    [x, y], [x + w / 2, y], [x + w, y],
-    [x, y + h / 2], [x + w, y + h / 2],
-    [x, y + h], [x + w / 2, y + h], [x + w, y + h],
+    [-w / 2, -h / 2], [0, -h / 2], [w / 2, -h / 2],
+    [-w / 2, 0], [w / 2, 0],
+    [-w / 2, h / 2], [0, h / 2], [w / 2, h / 2],
   ];
 
   for (const [hx, hy] of handles) {
     ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
   }
 
+  // Rotation handle (circle)
+  ctx.beginPath();
+  ctx.arc(0, -h / 2 - ROTATE_HANDLE_OFFSET, handleSize / 2 + 1, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.restore();
+}
+
+// Convert a scene point into the layer's local frame (relative to image center,
+// with the image's rotation undone)
+export function sceneToLayerLocal(
+  layer: ImageLayer,
+  px: number,
+  py: number,
+): { lx: number; ly: number } {
+  const w = layer.naturalWidth * layer.scaleX;
+  const h = layer.naturalHeight * layer.scaleY;
+  const dx = px - (layer.x + w / 2);
+  const dy = py - (layer.y + h / 2);
+  const rot = layer.rotation || 0;
+  const cos = Math.cos(-rot);
+  const sin = Math.sin(-rot);
+  return { lx: dx * cos - dy * sin, ly: dx * sin + dy * cos };
 }
 
 export function getHandleAtPoint(
@@ -188,24 +219,25 @@ export function getHandleAtPoint(
 ): string | null {
   const w = layer.naturalWidth * layer.scaleX;
   const h = layer.naturalHeight * layer.scaleY;
-  const x = layer.x;
-  const y = layer.y;
   const tolerance = 10;
 
+  const { lx, ly } = sceneToLayerLocal(layer, px, py);
+
   const handles: Array<[number, number, string]> = [
-    [x, y, 'nw'], [x + w / 2, y, 'n'], [x + w, y, 'ne'],
-    [x, y + h / 2, 'w'], [x + w, y + h / 2, 'e'],
-    [x, y + h, 'sw'], [x + w / 2, y + h, 's'], [x + w, y + h, 'se'],
+    [-w / 2, -h / 2, 'nw'], [0, -h / 2, 'n'], [w / 2, -h / 2, 'ne'],
+    [-w / 2, 0, 'w'], [w / 2, 0, 'e'],
+    [-w / 2, h / 2, 'sw'], [0, h / 2, 's'], [w / 2, h / 2, 'se'],
+    [0, -h / 2 - ROTATE_HANDLE_OFFSET, 'rotate'],
   ];
 
   for (const [hx, hy, name] of handles) {
-    if (Math.abs(px - hx) <= tolerance && Math.abs(py - hy) <= tolerance) {
+    if (Math.abs(lx - hx) <= tolerance && Math.abs(ly - hy) <= tolerance) {
       return name;
     }
   }
 
   // Check if inside bounding box (for move)
-  if (px >= x && px <= x + w && py >= y && py <= y + h) {
+  if (Math.abs(lx) <= w / 2 && Math.abs(ly) <= h / 2) {
     return 'move';
   }
 
