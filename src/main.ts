@@ -7,6 +7,7 @@ import { renderScene, clearImageCache, getHandleAtPoint, sceneToLayerLocal } fro
 import { FogSystem } from './fog';
 import { createLayerPanel } from './LayerPanel';
 import { handleTransformMouseDown, handleTransformMouseMove, handleTransformMouseUp, getHandleCursor } from './handles';
+import { handlePanMouseDown, handlePanMouseMove, handlePanMouseUp } from './pan';
 import { handleMeasureMouseDown, handleMeasureMouseMove, handleMeasureMouseUp } from './measurement';
 import { ImageLayer, GridLayer, FogLayer, Layer } from './types';
 import './styles.css';
@@ -32,7 +33,12 @@ function getSceneToCanvasScale(): number {
 
 function canvasToScene(cx: number, cy: number): { x: number; y: number } {
   const scale = getSceneToCanvasScale();
-  return { x: cx / scale, y: cy / scale };
+  const { zoom, panX, panY } = store.getViewport();
+  // Invert: canvasPixel = scale * (pan + zoom * world)
+  return {
+    x: (cx / scale - panX) / zoom,
+    y: (cy / scale - panY) / zoom,
+  };
 }
 
 function scheduleRender(): void {
@@ -59,6 +65,7 @@ function renderLoop(): void {
       fogSystem,
       session.measurement,
       state.selectedLayerId,
+      session.viewport,
     );
 
     previewCtx.restore();
@@ -258,6 +265,8 @@ async function loadSession(): Promise<void> {
     }
   }
 
+  updateZoomLabel();
+  updateToolbarActiveState();
   scheduleRender();
 }
 
@@ -321,9 +330,15 @@ function setupCanvasInteraction(): void {
       return;
     }
 
+    if (tool === 'pan') {
+      handlePanMouseDown(cx, cy, getSceneToCanvasScale());
+      previewCanvas.style.cursor = 'grabbing';
+      scheduleRender();
+      return;
+    }
+
     // Select tool
-    const scale = getSceneToCanvasScale();
-    if (handleTransformMouseDown(cx, cy, scale)) {
+    if (handleTransformMouseDown(scene.x, scene.y)) {
       scheduleRender();
       return;
     }
@@ -332,7 +347,7 @@ function setupCanvasInteraction(): void {
     const hit = hitTestLayers(scene.x, scene.y);
     store.selectLayer(hit?.id ?? null);
     if (hit) {
-      handleTransformMouseDown(cx, cy, scale);
+      handleTransformMouseDown(scene.x, scene.y);
     }
     scheduleRender();
   });
@@ -358,9 +373,18 @@ function setupCanvasInteraction(): void {
       return;
     }
 
+    if (tool === 'pan') {
+      if (handlePanMouseMove(cx, cy)) {
+        previewCanvas.style.cursor = 'grabbing';
+        scheduleRender();
+      } else {
+        previewCanvas.style.cursor = 'grab';
+      }
+      return;
+    }
+
     // Transform handle drag
-    const scale = getSceneToCanvasScale();
-    if (handleTransformMouseMove(cx, cy, scale, e.shiftKey)) {
+    if (handleTransformMouseMove(scene.x, scene.y, e.shiftKey)) {
       scheduleRender();
       return;
     }
@@ -404,6 +428,12 @@ function setupCanvasInteraction(): void {
       return;
     }
 
+    if (tool === 'pan') {
+      handlePanMouseUp();
+      previewCanvas.style.cursor = 'grab';
+      return;
+    }
+
     handleTransformMouseUp();
     scheduleRender();
   });
@@ -413,7 +443,55 @@ function setupCanvasInteraction(): void {
       fogBrushing = false;
       currentFogStroke = [];
     }
+    handlePanMouseUp();
   });
+
+  // Wheel to zoom toward the cursor
+  previewCanvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = previewCanvas.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * (previewCanvas.width / rect.width);
+    const cy = (e.clientY - rect.top) * (previewCanvas.height / rect.height);
+    zoomAt(cx, cy, e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+  }, { passive: false });
+}
+
+const ZOOM_STEP = 1.1;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 10;
+
+// Apply a zoom factor while keeping the scene point under (canvasX, canvasY) fixed.
+function zoomAt(canvasX: number, canvasY: number, factor: number): void {
+  const scale = getSceneToCanvasScale();
+  const { zoom, panX, panY } = store.getViewport();
+  const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
+  if (newZoom === zoom) return;
+
+  // World point under the cursor before zoom (in scene/display units, pre-scale).
+  const dx = canvasX / scale;
+  const dy = canvasY / scale;
+  // Keep it fixed: dx = panX + zoom*world  =>  world = (dx - panX)/zoom
+  // newPan = dx - newZoom*world
+  const worldX = (dx - panX) / zoom;
+  const worldY = (dy - panY) / zoom;
+  const newPanX = dx - newZoom * worldX;
+  const newPanY = dy - newZoom * worldY;
+
+  store.setViewport(newZoom, newPanX, newPanY);
+  updateZoomLabel();
+  scheduleRender();
+}
+
+// Zoom toward the center of the preview canvas (used by +/- buttons).
+function zoomToCenter(factor: number): void {
+  zoomAt(previewCanvas.width / 2, previewCanvas.height / 2, factor);
+}
+
+function updateZoomLabel(): void {
+  const label = document.getElementById('zoom-label');
+  if (label) {
+    label.textContent = `${Math.round(store.getViewport().zoom * 100)}%`;
+  }
 }
 
 function setupToolbar(): void {
@@ -431,6 +509,10 @@ function setupToolbar(): void {
     store.setTool('select');
     updateToolbarActiveState();
   });
+  toolbar.querySelector('#btn-tool-pan')!.addEventListener('click', () => {
+    store.setTool('pan');
+    updateToolbarActiveState();
+  });
   toolbar.querySelector('#btn-tool-fog')!.addEventListener('click', () => {
     store.setTool('fog-brush');
     updateToolbarActiveState();
@@ -438,6 +520,15 @@ function setupToolbar(): void {
   toolbar.querySelector('#btn-tool-measure')!.addEventListener('click', () => {
     store.setTool('measure');
     updateToolbarActiveState();
+  });
+
+  // Zoom controls
+  toolbar.querySelector('#btn-zoom-in')!.addEventListener('click', () => zoomToCenter(ZOOM_STEP));
+  toolbar.querySelector('#btn-zoom-out')!.addEventListener('click', () => zoomToCenter(1 / ZOOM_STEP));
+  toolbar.querySelector('#btn-zoom-reset')!.addEventListener('click', () => {
+    store.resetViewport();
+    updateZoomLabel();
+    scheduleRender();
   });
 
   // Fog brush size slider
@@ -461,17 +552,41 @@ function setupToolbar(): void {
 function updateToolbarActiveState(): void {
   const tool = store.getState().activeTool;
   document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById(`btn-tool-${tool === 'fog-brush' ? 'fog' : tool}`)?.classList.add('active');
+  const idSuffix = tool === 'fog-brush' ? 'fog' : tool;
+  document.getElementById(`btn-tool-${idSuffix}`)?.classList.add('active');
 
   // Show/hide fog controls
   const fogControls = document.getElementById('fog-controls')!;
   fogControls.style.display = tool === 'fog-brush' ? 'flex' : 'none';
+
+  // Reflect the pan tool with a grab cursor when idle
+  if (previewCanvas) {
+    previewCanvas.style.cursor = tool === 'pan' ? 'grab' : 'default';
+  }
 }
 
 function setupKeyboardShortcuts(): void {
+  // Spacebar = temporary pan (hold to pan, release to restore previous tool)
+  let spacePanActive = false;
+  let spacePanPrevTool: import('./types').ToolMode | null = null;
+
   document.addEventListener('keydown', (e) => {
     // Don't capture when typing in inputs
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (!spacePanActive) {
+        spacePanActive = true;
+        const current = store.getState().activeTool;
+        if (current !== 'pan') {
+          spacePanPrevTool = current;
+          store.setTool('pan');
+          updateToolbarActiveState();
+        }
+      }
+      return;
+    }
 
     switch (e.key) {
       case 'Escape':
@@ -503,6 +618,24 @@ function setupKeyboardShortcuts(): void {
         store.setTool('select');
         updateToolbarActiveState();
         break;
+      case 'h':
+      case 'H':
+        store.setTool('pan');
+        updateToolbarActiveState();
+        break;
+      case '+':
+      case '=':
+        zoomToCenter(ZOOM_STEP);
+        break;
+      case '-':
+      case '_':
+        zoomToCenter(1 / ZOOM_STEP);
+        break;
+      case '0':
+        store.resetViewport();
+        updateZoomLabel();
+        scheduleRender();
+        break;
       case 'z':
       case 'Z':
         if (e.ctrlKey) {
@@ -533,6 +666,17 @@ function setupKeyboardShortcuts(): void {
           scheduleRender();
         }
         break;
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (e.key === ' ' && spacePanActive) {
+      spacePanActive = false;
+      if (spacePanPrevTool) {
+        store.setTool(spacePanPrevTool);
+        spacePanPrevTool = null;
+        updateToolbarActiveState();
+      }
     }
   });
 }

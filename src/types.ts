@@ -50,16 +50,25 @@ export interface MeasurementState {
   endY: number;
 }
 
+export interface Viewport {
+  zoom: number;  // scale factor applied to all layers, 1.0 = 100%
+  panX: number;  // pan offset in scene space (pixels)
+  panY: number;
+}
+
+export const DEFAULT_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
+
 export interface SessionState {
   canvasWidth: number;
   canvasHeight: number;
   layers: Layer[];
   measurement: MeasurementState | null;
+  viewport: Viewport;
 }
 
 export type RenderMode = 'primary' | 'secondary';
 
-export type ToolMode = 'select' | 'fog-brush' | 'measure';
+export type ToolMode = 'select' | 'fog-brush' | 'measure' | 'pan';
 
 export interface AppState {
   session: SessionState;

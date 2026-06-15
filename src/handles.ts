@@ -33,16 +33,11 @@ export function getHandleCursor(handle: string | null): string {
 }
 
 export function handleTransformMouseDown(
-  canvasX: number,
-  canvasY: number,
-  sceneToCanvasScale: number,
+  sceneX: number,
+  sceneY: number,
 ): boolean {
   const selected = store.getSelectedLayer();
   if (!selected || selected.type !== 'image' || selected.locked) return false;
-
-  // Convert canvas coords to scene coords
-  const sceneX = canvasX / sceneToCanvasScale;
-  const sceneY = canvasY / sceneToCanvasScale;
 
   const handle = getHandleAtPoint(selected as ImageLayer, sceneX, sceneY);
   if (!handle) return false;
@@ -80,15 +75,12 @@ function anchorOffset(handle: string, w: number, h: number): { x: number; y: num
 }
 
 export function handleTransformMouseMove(
-  canvasX: number,
-  canvasY: number,
-  sceneToCanvasScale: number,
+  sceneX: number,
+  sceneY: number,
   shiftKey: boolean,
 ): boolean {
   if (!dragState || !dragState.active) return false;
 
-  const sceneX = canvasX / sceneToCanvasScale;
-  const sceneY = canvasY / sceneToCanvasScale;
   const dx = sceneX - dragState.startMouseX;
   const dy = sceneY - dragState.startMouseY;
 

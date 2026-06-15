@@ -85,6 +85,14 @@ html, body {
   color: #a6adc8;
 }
 
+#zoom-label {
+  font-size: 12px;
+  color: #cdd6f4;
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Main content */
 #main-content {
   display: flex;
