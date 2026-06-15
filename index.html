@@ -20,8 +20,16 @@
         <div class="toolbar-separator"></div>
         <div class="toolbar-group">
           <button id="btn-tool-select" class="tool-btn active" title="Select Tool (V)">⬚ Select</button>
+          <button id="btn-tool-pan" class="tool-btn" title="Hand / Pan Tool (H, or hold Space)">✋ Hand</button>
           <button id="btn-tool-fog" class="tool-btn" title="Fog Brush (F)">🖌 Fog Brush</button>
           <button id="btn-tool-measure" class="tool-btn" title="Measure (M)">📏 Measure</button>
+        </div>
+        <div class="toolbar-separator"></div>
+        <div class="toolbar-group">
+          <button id="btn-zoom-out" title="Zoom Out (-)">➖</button>
+          <span id="zoom-label" title="Zoom level">100%</span>
+          <button id="btn-zoom-in" title="Zoom In (+)">➕</button>
+          <button id="btn-zoom-reset" title="Reset View (0)">⤢ Reset</button>
         </div>
         <div id="fog-controls" class="toolbar-group" style="display:none">
           <label>Brush: <span id="fog-brush-label">30</span>px</label>
@@ -54,7 +62,7 @@
       <!-- Status bar -->
       <div id="status-bar">
         <span id="status-tool">Tool: Select</span>
-        <span id="status-info">Shortcuts: V=Select F=Fog M=Measure G=Grid Esc=Cancel Ctrl+Z=Undo fog Del=Delete layer</span>
+        <span id="status-info">Shortcuts: V=Select H=Hand F=Fog M=Measure G=Grid Space=Pan Wheel/±=Zoom 0=Reset Esc=Cancel Ctrl+Z=Undo fog Del=Delete layer</span>
       </div>
     </div>
   </body>

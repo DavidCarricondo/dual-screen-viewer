@@ -1,4 +1,4 @@
-import { Layer, ImageLayer, GridLayer, FogLayer, MeasurementState, RenderMode } from './types';
+import { Layer, ImageLayer, GridLayer, FogLayer, MeasurementState, RenderMode, Viewport } from './types';
 import { renderGrid } from './grid';
 import { FogSystem } from './fog';
 
@@ -30,6 +30,7 @@ export function renderScene(
   fogSystem: FogSystem | null,
   measurement: MeasurementState | null,
   selectedLayerId: string | null,
+  viewport: Viewport,
 ): void {
   // Clear
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -37,6 +38,11 @@ export function renderScene(
   // Fill with dark background
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // Apply shared viewport transform (zoom + pan) to all layers and overlays
+  ctx.save();
+  ctx.translate(viewport.panX, viewport.panY);
+  ctx.scale(viewport.zoom, viewport.zoom);
 
   // Sort by zIndex and render
   const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex);
@@ -71,6 +77,8 @@ export function renderScene(
       renderSelectionHandles(ctx, selectedLayer as ImageLayer);
     }
   }
+
+  ctx.restore();
 }
 
 function renderImageLayer(ctx: CanvasRenderingContext2D, layer: ImageLayer): void {

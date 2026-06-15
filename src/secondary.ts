@@ -108,6 +108,12 @@ function renderCurrentScene(): void {
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
+  // Apply shared viewport transform (zoom + pan) mirrored from the primary window
+  const viewport = currentSession.viewport ?? { zoom: 1, panX: 0, panY: 0 };
+  ctx.save();
+  ctx.translate(viewport.panX, viewport.panY);
+  ctx.scale(viewport.zoom, viewport.zoom);
+
   const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex);
 
   for (const layer of sorted) {
@@ -194,6 +200,8 @@ function renderCurrentScene(): void {
 
     ctx.restore();
   }
+
+  ctx.restore();
 }
 
 // Listen for scene updates from primary window

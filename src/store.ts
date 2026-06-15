@@ -1,6 +1,9 @@
-import { AppState, SessionState, Layer, ToolMode } from './types';
+import { AppState, SessionState, Layer, ToolMode, Viewport, DEFAULT_VIEWPORT } from './types';
 
 type Listener = () => void;
+
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 10;
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -12,6 +15,7 @@ function createDefaultSession(): SessionState {
     canvasHeight: 1080,
     layers: [],
     measurement: null,
+    viewport: { ...DEFAULT_VIEWPORT },
   };
 }
 
@@ -138,8 +142,41 @@ class StateStore {
     this.notify();
   }
 
+  // Viewport (zoom / pan) — shared transform applied to all layers
+  getViewport(): Viewport {
+    return this.state.session.viewport;
+  }
+
+  setZoom(zoom: number): void {
+    this.state.session.viewport.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    this.notify();
+  }
+
+  setPan(panX: number, panY: number): void {
+    this.state.session.viewport.panX = panX;
+    this.state.session.viewport.panY = panY;
+    this.notify();
+  }
+
+  // Set zoom and pan together (used by cursor-anchored wheel zoom)
+  setViewport(zoom: number, panX: number, panY: number): void {
+    this.state.session.viewport.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    this.state.session.viewport.panX = panX;
+    this.state.session.viewport.panY = panY;
+    this.notify();
+  }
+
+  resetViewport(): void {
+    this.state.session.viewport = { ...DEFAULT_VIEWPORT };
+    this.notify();
+  }
+
   // Session load/replace
   loadSession(session: SessionState): void {
+    // Back-compat: older sessions may not include a viewport
+    if (!session.viewport) {
+      session.viewport = { ...DEFAULT_VIEWPORT };
+    }
     this.state.session = session;
     this.state.selectedLayerId = null;
     this.state.activeTool = 'select';
