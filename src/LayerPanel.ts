@@ -1,5 +1,5 @@
 import { store } from './store';
-import { Layer } from './types';
+import { Layer, ImageLayer } from './types';
 import { clearImageCache } from './renderer';
 
 export function createLayerPanel(container: HTMLElement): { update: () => void } {
@@ -37,14 +37,19 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
 
     const icon = layer.type === 'image' ? '🖼' : layer.type === 'grid' ? '⊞' : '🌫';
 
+    const aspectBtn = layer.type === 'image'
+      ? `<button class="layer-btn aspect-btn" title="${layer.lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}">${layer.lockAspectRatio ? '🔗' : '⤢'}</button>`
+      : '';
+
     row.innerHTML = `
       <span class="layer-icon">${icon}</span>
-      <span class="layer-name">${escapeHtml(layer.name)}</span>
+      <span class="layer-name" title="${escapeHtml(layer.name)}">${escapeHtml(layer.name)}</span>
       <div class="layer-controls">
         <button class="layer-btn up-btn" title="Bring forward" ${isTop ? 'disabled' : ''}>▲</button>
         <button class="layer-btn down-btn" title="Send backward" ${isBottom ? 'disabled' : ''}>▼</button>
         <button class="layer-btn vis-btn" title="${layer.visible ? 'Hide' : 'Show'}">${layer.visible ? '👁' : '—'}</button>
         <button class="layer-btn lock-btn" title="${layer.locked ? 'Unlock' : 'Lock'}">${layer.locked ? '🔒' : '🔓'}</button>
+        ${aspectBtn}
         <input type="range" class="opacity-slider" min="0" max="100" value="${Math.round(layer.opacity * 100)}" title="Opacity">
         <button class="layer-btn del-btn" title="Delete">✕</button>
       </div>
@@ -77,6 +82,12 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
     row.querySelector('.lock-btn')!.addEventListener('click', (e) => {
       e.stopPropagation();
       store.updateLayer(layer.id, { locked: !layer.locked });
+    });
+
+    // Aspect-ratio lock toggle (image layers only)
+    row.querySelector('.aspect-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.updateLayer(layer.id, { lockAspectRatio: !(layer as ImageLayer).lockAspectRatio });
     });
 
     // Opacity slider

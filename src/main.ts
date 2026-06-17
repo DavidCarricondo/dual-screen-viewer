@@ -134,6 +134,7 @@ async function addImageLayer(): Promise<void> {
       rotation: 0,
       naturalWidth: img.naturalWidth,
       naturalHeight: img.naturalHeight,
+      lockAspectRatio: true,
     };
 
     store.addLayer(layer);
