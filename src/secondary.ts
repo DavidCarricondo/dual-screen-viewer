@@ -3,6 +3,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SessionState, ImageLayer, GridLayer, FogLayer, ErasedStroke } from './types';
 import { renderGrid } from './grid';
+import { fillOuterFog } from './fog';
 
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
@@ -136,7 +137,7 @@ function renderCurrentScene(): void {
         break;
       }
       case 'grid':
-        renderGrid(ctx, layer as GridLayer, canvasWidth, canvasHeight);
+        renderGrid(ctx, layer as GridLayer, canvasWidth, canvasHeight, viewport);
         break;
       case 'fog': {
         const fogLayer = layer as FogLayer;
@@ -145,6 +146,7 @@ function renderCurrentScene(): void {
         if (fogCanvas) {
           ctx.save();
           ctx.globalAlpha = fogLayer.opacity; // Full opacity for players
+          fillOuterFog(ctx, canvasWidth, canvasHeight, viewport);
           ctx.drawImage(fogCanvas, 0, 0);
           ctx.restore();
         }

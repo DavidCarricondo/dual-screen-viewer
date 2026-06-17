@@ -128,11 +128,16 @@ export function handleTransformMouseMove(
     let newScaleX = Math.max(0.01, newW / layer.naturalWidth);
     let newScaleY = Math.max(0.01, newH / layer.naturalHeight);
 
-    // Lock aspect ratio with shift
-    if (shiftKey) {
-      const avgScale = (newScaleX + newScaleY) / 2;
-      newScaleX = avgScale;
-      newScaleY = avgScale;
+    // Aspect-ratio lock applies to corner handles (those affecting both axes).
+    // The per-layer setting can be temporarily inverted by holding Shift.
+    const isCorner = newW !== startW && newH !== startH;
+    const lockAspect = layer.lockAspectRatio !== shiftKey;
+    if (isCorner && lockAspect) {
+      const ratioX = newScaleX / dragState.startScaleX;
+      const ratioY = newScaleY / dragState.startScaleY;
+      const ratio = Math.abs(ratioX - 1) >= Math.abs(ratioY - 1) ? ratioX : ratioY;
+      newScaleX = Math.max(0.01, dragState.startScaleX * ratio);
+      newScaleY = Math.max(0.01, dragState.startScaleY * ratio);
     }
 
     newW = layer.naturalWidth * newScaleX;

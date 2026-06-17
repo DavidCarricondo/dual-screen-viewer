@@ -1,4 +1,37 @@
-import { ErasedStroke, FogLayer, RenderMode } from './types';
+import { ErasedStroke, FogLayer, RenderMode, Viewport } from './types';
+
+// Fills the visible region outside the scene rectangle [0,sceneW] x [0,sceneH]
+// with solid fog, so fog extends across the whole viewport when zoomed/panned.
+// Uses 4 non-overlapping bands to avoid alpha-overlap seams. The caller is
+// responsible for setting globalAlpha; the fill colour matches the fog canvas.
+export function fillOuterFog(
+  ctx: CanvasRenderingContext2D,
+  sceneW: number,
+  sceneH: number,
+  viewport: Viewport,
+): void {
+  const vx0 = (0 - viewport.panX) / viewport.zoom;
+  const vy0 = (0 - viewport.panY) / viewport.zoom;
+  const vx1 = (sceneW - viewport.panX) / viewport.zoom;
+  const vy1 = (sceneH - viewport.panY) / viewport.zoom;
+
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+
+  // Top band (full width)
+  if (vy0 < 0) ctx.fillRect(vx0, vy0, vx1 - vx0, -vy0);
+  // Bottom band (full width)
+  if (vy1 > sceneH) ctx.fillRect(vx0, sceneH, vx1 - vx0, vy1 - sceneH);
+
+  // Middle row, clamped vertically to the scene rect to avoid overlap
+  const midTop = Math.max(vy0, 0);
+  const midBottom = Math.min(vy1, sceneH);
+  if (midBottom > midTop) {
+    // Left band
+    if (vx0 < 0) ctx.fillRect(vx0, midTop, -vx0, midBottom - midTop);
+    // Right band
+    if (vx1 > sceneW) ctx.fillRect(sceneW, midTop, vx1 - sceneW, midBottom - midTop);
+  }
+}
 
 export class FogSystem {
   private canvas: OffscreenCanvas;
@@ -62,12 +95,18 @@ export class FogSystem {
     }
   }
 
-  draw(targetCtx: CanvasRenderingContext2D, layer: FogLayer, mode: RenderMode): void {
+  draw(
+    targetCtx: CanvasRenderingContext2D,
+    layer: FogLayer,
+    mode: RenderMode,
+    viewport: Viewport,
+  ): void {
     if (!layer.visible) return;
 
     targetCtx.save();
     // GM sees through fog at 40% opacity; players see full fog
     targetCtx.globalAlpha = mode === 'primary' ? 0.4 : layer.opacity;
+    fillOuterFog(targetCtx, this.width, this.height, viewport);
     targetCtx.drawImage(this.canvas, 0, 0);
     targetCtx.restore();
   }

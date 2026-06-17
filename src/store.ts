@@ -1,4 +1,4 @@
-import { AppState, SessionState, Layer, ToolMode, Viewport, DEFAULT_VIEWPORT } from './types';
+import { AppState, SessionState, Layer, ImageLayer, ToolMode, Viewport, DEFAULT_VIEWPORT } from './types';
 
 type Listener = () => void;
 
@@ -176,6 +176,12 @@ class StateStore {
     // Back-compat: older sessions may not include a viewport
     if (!session.viewport) {
       session.viewport = { ...DEFAULT_VIEWPORT };
+    }
+    // Back-compat: older image layers may not include lockAspectRatio
+    for (const layer of session.layers) {
+      if (layer.type === 'image' && (layer as ImageLayer).lockAspectRatio === undefined) {
+        (layer as ImageLayer).lockAspectRatio = true;
+      }
     }
     this.state.session = session;
     this.state.selectedLayerId = null;

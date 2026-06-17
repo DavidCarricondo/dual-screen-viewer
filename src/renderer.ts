@@ -55,11 +55,11 @@ export function renderScene(
         renderImageLayer(ctx, layer as ImageLayer);
         break;
       case 'grid':
-        renderGrid(ctx, layer as GridLayer, canvasWidth, canvasHeight);
+        renderGrid(ctx, layer as GridLayer, canvasWidth, canvasHeight, viewport);
         break;
       case 'fog':
         if (fogSystem) {
-          fogSystem.draw(ctx, layer as FogLayer, mode);
+          fogSystem.draw(ctx, layer as FogLayer, mode, viewport);
         }
         break;
     }

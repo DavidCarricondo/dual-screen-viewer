@@ -21,6 +21,7 @@ export interface ImageLayer extends BaseLayer {
   rotation: number; // radians, around image center
   naturalWidth: number;
   naturalHeight: number;
+  lockAspectRatio: boolean; // constrain corner-drag scaling to preserve aspect ratio
 }
 
 export interface GridLayer extends BaseLayer {
