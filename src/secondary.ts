@@ -3,15 +3,14 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SessionState, ImageLayer, GridLayer, FogLayer, ErasedStroke } from './types';
 import { renderGrid } from './grid';
-import { fillOuterFog } from './fog';
+import { FogSystem } from './fog';
 
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 let currentSession: SessionState | null = null;
 
-// Secondary window maintains its own fog OffscreenCanvas
-let fogCanvas: OffscreenCanvas | null = null;
-let fogCtx: OffscreenCanvasRenderingContext2D | null = null;
+// Secondary window maintains its own fog raster, mirrored from the primary
+let fog: FogSystem | null = null;
 let fogWidth = 0;
 let fogHeight = 0;
 let appliedStrokeCount = 0;
@@ -32,66 +31,28 @@ function getOrLoadImage(layer: ImageLayer): HTMLImageElement | null {
 }
 
 function initFog(width: number, height: number): void {
-  if (fogWidth === width && fogHeight === height && fogCanvas) return;
+  if (fogWidth === width && fogHeight === height && fog) return;
   fogWidth = width;
   fogHeight = height;
-  fogCanvas = new OffscreenCanvas(width, height);
-  fogCtx = fogCanvas.getContext('2d')!;
-  fogCtx.fillStyle = 'rgba(0,0,0,1)';
-  fogCtx.fillRect(0, 0, width, height);
+  fog = new FogSystem(width, height);
   appliedStrokeCount = 0;
 }
 
 function applyFogStrokes(strokes: ErasedStroke[]): void {
-  if (!fogCtx || !fogCanvas) return;
-
-  // Only apply new strokes since last applied
-  const newStrokes = strokes.slice(appliedStrokeCount);
-  if (newStrokes.length === 0 && appliedStrokeCount === strokes.length) return;
+  if (!fog) return;
 
   // If strokes were removed (undo), rebuild from scratch
   if (strokes.length < appliedStrokeCount) {
-    fogCtx.globalCompositeOperation = 'source-over';
-    fogCtx.fillStyle = 'rgba(0,0,0,1)';
-    fogCtx.fillRect(0, 0, fogWidth, fogHeight);
-    appliedStrokeCount = 0;
-    for (const stroke of strokes) {
-      eraseStroke(stroke);
-    }
+    fog.replayStrokes(strokes);
     appliedStrokeCount = strokes.length;
     return;
   }
 
-  for (const stroke of newStrokes) {
-    eraseStroke(stroke);
+  // Otherwise apply only the strokes added since last time
+  for (const stroke of strokes.slice(appliedStrokeCount)) {
+    fog.erasePoints(stroke.points, stroke.radius);
   }
   appliedStrokeCount = strokes.length;
-}
-
-function eraseStroke(stroke: ErasedStroke): void {
-  if (!fogCtx) return;
-  fogCtx.globalCompositeOperation = 'destination-out';
-  fogCtx.fillStyle = 'rgba(0,0,0,1)';
-
-  for (const point of stroke.points) {
-    fogCtx.beginPath();
-    fogCtx.arc(point.x, point.y, stroke.radius, 0, Math.PI * 2);
-    fogCtx.fill();
-  }
-
-  if (stroke.points.length > 1) {
-    fogCtx.lineWidth = stroke.radius * 2;
-    fogCtx.lineCap = 'round';
-    fogCtx.lineJoin = 'round';
-    fogCtx.beginPath();
-    fogCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-    for (let i = 1; i < stroke.points.length; i++) {
-      fogCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-    }
-    fogCtx.stroke();
-  }
-
-  fogCtx.globalCompositeOperation = 'source-over';
 }
 
 function renderCurrentScene(): void {
@@ -143,13 +104,7 @@ function renderCurrentScene(): void {
         const fogLayer = layer as FogLayer;
         initFog(canvasWidth, canvasHeight);
         applyFogStrokes(fogLayer.erasedStrokes || []);
-        if (fogCanvas) {
-          ctx.save();
-          ctx.globalAlpha = fogLayer.opacity; // Full opacity for players
-          fillOuterFog(ctx, canvasWidth, canvasHeight, viewport);
-          ctx.drawImage(fogCanvas, 0, 0);
-          ctx.restore();
-        }
+        fog?.draw(ctx, fogLayer, 'secondary', viewport, canvasWidth, canvasHeight);
         break;
       }
     }
@@ -262,35 +217,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     await listen<string>('fog:delta', (event) => {
       try {
         const delta = JSON.parse(event.payload) as { points: Array<{ x: number; y: number }>; radius: number };
-        if (fogCtx && fogCanvas) {
-          fogCtx.globalCompositeOperation = 'destination-out';
-          fogCtx.fillStyle = 'rgba(0,0,0,1)';
-
-          for (const point of delta.points) {
-            fogCtx.beginPath();
-            fogCtx.arc(point.x, point.y, delta.radius, 0, Math.PI * 2);
-            fogCtx.fill();
-          }
-
-          if (delta.points.length > 1) {
-            fogCtx.lineWidth = delta.radius * 2;
-            fogCtx.lineCap = 'round';
-            fogCtx.lineJoin = 'round';
-            fogCtx.beginPath();
-            fogCtx.moveTo(delta.points[0].x, delta.points[0].y);
-          for (let i = 1; i < delta.points.length; i++) {
-            fogCtx.lineTo(delta.points[i].x, delta.points[i].y);
-          }
-          fogCtx.stroke();
-        }
-
-        fogCtx.globalCompositeOperation = 'source-over';
+        fog?.erasePoints(delta.points, delta.radius);
         renderCurrentScene();
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-  });
+    });
 
     // Signal to primary that listeners are ready
     await emit('secondary:ready');

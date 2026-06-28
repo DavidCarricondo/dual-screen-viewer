@@ -112,25 +112,6 @@ fn load_session(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn save_fog_png(path: String, data: Vec<u8>) -> Result<(), String> {
-    let path = PathBuf::from(&path);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    fs::write(&path, &data).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-fn load_fog_png(path: String) -> Result<Vec<u8>, String> {
-    let path = PathBuf::from(&path);
-    if !path.exists() {
-        return Err("Fog file not found".to_string());
-    }
-    fs::read(&path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 fn broadcast_to_secondary(app: tauri::AppHandle, event: String, payload: String) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("secondary") {
         window.emit(&event, payload).map_err(|e| e.to_string())?;
@@ -160,8 +141,6 @@ pub fn run() {
             is_secondary_open,
             save_session,
             load_session,
-            save_fog_png,
-            load_fog_png,
             broadcast_to_secondary,
         ])
         .run(tauri::generate_context!())
