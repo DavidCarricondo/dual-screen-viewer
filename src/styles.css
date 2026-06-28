@@ -118,10 +118,24 @@ html, body {
   background: #1a1a2e;
 }
 
+/* Resizer handle between the preview and the layers panel */
+#layer-panel-resizer {
+  flex: 0 0 5px;
+  width: 5px;
+  cursor: col-resize;
+  background: #313244;
+  transition: background 0.15s;
+}
+
+#layer-panel-resizer:hover {
+  background: #89b4fa;
+}
+
 /* Layer panel */
 #layer-panel-container {
   width: 260px;
-  min-width: 260px;
+  min-width: 220px;
+  flex: 0 0 auto;
   background: #181825;
   border-left: 1px solid #313244;
   overflow-y: auto;
@@ -220,6 +234,11 @@ html, body {
 .layer-btn.del-btn:hover {
   background: #f38ba8;
   color: #1e1e2e;
+}
+
+/* Layer hidden from the player screen only */
+.layer-btn.player-vis-btn.player-hidden {
+  color: #f38ba8;
 }
 
 .opacity-slider {

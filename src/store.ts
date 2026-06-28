@@ -182,6 +182,10 @@ class StateStore {
       if (layer.type === 'image' && (layer as ImageLayer).lockAspectRatio === undefined) {
         (layer as ImageLayer).lockAspectRatio = true;
       }
+      // Back-compat: older sessions predate the per-layer player-visibility flag
+      if (layer.hiddenFromPlayer === undefined) {
+        layer.hiddenFromPlayer = false;
+      }
     }
     this.state.session = session;
     this.state.selectedLayerId = null;

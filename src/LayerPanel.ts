@@ -47,7 +47,8 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
       <div class="layer-controls">
         <button class="layer-btn up-btn" title="Bring forward" ${isTop ? 'disabled' : ''}>▲</button>
         <button class="layer-btn down-btn" title="Send backward" ${isBottom ? 'disabled' : ''}>▼</button>
-        <button class="layer-btn vis-btn" title="${layer.visible ? 'Hide' : 'Show'}">${layer.visible ? '👁' : '—'}</button>
+        <button class="layer-btn vis-btn" title="${layer.visible ? 'Hide on both screens' : 'Show on both screens'}">${layer.visible ? '👁' : '—'}</button>
+        <button class="layer-btn player-vis-btn ${layer.hiddenFromPlayer ? 'player-hidden' : ''}" title="${layer.hiddenFromPlayer ? 'Hidden from players — click to reveal on player screen' : 'Visible to players — click to hide from player screen'}">${layer.hiddenFromPlayer ? '🚫' : '🖥'}</button>
         <button class="layer-btn lock-btn" title="${layer.locked ? 'Unlock' : 'Lock'}">${layer.locked ? '🔒' : '🔓'}</button>
         ${aspectBtn}
         <input type="range" class="opacity-slider" min="0" max="100" value="${Math.round(layer.opacity * 100)}" title="Opacity">
@@ -72,10 +73,16 @@ export function createLayerPanel(container: HTMLElement): { update: () => void }
       store.moveLayer(layer.id, -1);
     });
 
-    // Visibility toggle
+    // Visibility toggle (affects both the GM and player screens)
     row.querySelector('.vis-btn')!.addEventListener('click', (e) => {
       e.stopPropagation();
       store.updateLayer(layer.id, { visible: !layer.visible });
+    });
+
+    // Player-only visibility toggle (hides on the player screen, GM still sees it)
+    row.querySelector('.player-vis-btn')!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.updateLayer(layer.id, { hiddenFromPlayer: !layer.hiddenFromPlayer });
     });
 
     // Lock toggle
