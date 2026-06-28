@@ -6,6 +6,7 @@ import { broadcastSceneUpdate, broadcastFogDelta } from './events';
 import { renderScene, clearImageCache, getHandleAtPoint, sceneToLayerLocal } from './renderer';
 import { FogSystem } from './fog';
 import { createLayerPanel } from './LayerPanel';
+import { setupLayerPanelResize } from './panelResize';
 import { handleTransformMouseDown, handleTransformMouseMove, handleTransformMouseUp, getHandleCursor } from './handles';
 import { handlePanMouseDown, handlePanMouseMove, handlePanMouseUp } from './pan';
 import { handleMeasureMouseDown, handleMeasureMouseMove, handleMeasureMouseUp } from './measurement';
@@ -122,6 +123,7 @@ async function addImageLayer(): Promise<void> {
       name: pathStr.split(/[\\/]/).pop() || 'Image',
       type: 'image',
       visible: true,
+      hiddenFromPlayer: false,
       locked: false,
       opacity: 1,
       zIndex: 0,
@@ -156,6 +158,7 @@ function addGridLayer(): void {
     name: 'Grid',
     type: 'grid',
     visible: true,
+    hiddenFromPlayer: false,
     locked: false,
     opacity: 0.5,
     zIndex: 0,
@@ -181,6 +184,7 @@ function addFogLayer(): void {
     name: 'Fog of War',
     type: 'fog',
     visible: true,
+    hiddenFromPlayer: false,
     locked: false,
     opacity: 1,
     zIndex: 0,
@@ -699,6 +703,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupToolbar();
   setupCanvasInteraction();
   setupKeyboardShortcuts();
+  setupLayerPanelResize(resizePreviewCanvas);
 
   // Resize canvas on window resize
   window.addEventListener('resize', resizePreviewCanvas);

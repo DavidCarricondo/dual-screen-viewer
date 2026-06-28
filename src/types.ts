@@ -4,7 +4,8 @@ export interface BaseLayer {
   id: string;
   name: string;
   type: LayerType;
-  visible: boolean;
+  visible: boolean;        // applies to BOTH the GM and player screens
+  hiddenFromPlayer: boolean; // when true, hidden on the player screen only (GM still sees it)
   locked: boolean;
   opacity: number; // 0.0–1.0
   zIndex: number;

@@ -79,7 +79,8 @@ function renderCurrentScene(): void {
   const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex);
 
   for (const layer of sorted) {
-    if (!layer.visible) continue;
+    // Skip globally-hidden layers, plus any layer the GM has hidden from players only
+    if (!layer.visible || layer.hiddenFromPlayer) continue;
 
     switch (layer.type) {
       case 'image': {
