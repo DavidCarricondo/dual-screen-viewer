@@ -206,13 +206,6 @@ async function saveSession(): Promise<void> {
 
   await invoke('save_session', { path, data: json });
   lastSessionPath = path;
-
-  // Save fog PNG alongside
-  if (fogSystem) {
-    const fogPath = path.replace(/\.json$/, '_fog.png');
-    const pngBytes = await fogSystem.toPngBytes();
-    await invoke('save_fog_png', { path: fogPath, data: Array.from(pngBytes) });
-  }
 }
 
 async function loadSession(): Promise<void> {
@@ -240,30 +233,13 @@ async function loadSession(): Promise<void> {
   store.loadSession(session);
   lastSessionPath = filePath;
 
-  // Restore fog
+  // Restore fog by replaying the saved strokes. The raster grows itself to
+  // cover wherever strokes reach, so erased areas outside the original scene
+  // rectangle are reconstructed correctly.
   const fogLayer = session.layers.find((l: Layer) => l.type === 'fog');
   if (fogLayer) {
     fogSystem = new FogSystem(session.canvasWidth, session.canvasHeight);
-    // Try to load fog PNG
-    const fogPath = filePath.replace(/\.json$/, '_fog.png');
-    try {
-      const pngBytes = await invoke<number[]>('load_fog_png', { path: fogPath });
-      const uint8 = new Uint8Array(pngBytes);
-      const blob = new Blob([uint8], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.src = url;
-      await new Promise<void>((resolve) => { img.onload = () => resolve(); });
-      const ctx = fogSystem.getCanvas().getContext('2d')!;
-      ctx.clearRect(0, 0, session.canvasWidth, session.canvasHeight);
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-    } catch {
-      // If no fog file, replay strokes
-      if (fogLayer.erasedStrokes?.length) {
-        fogSystem.replayStrokes(fogLayer.erasedStrokes);
-      }
-    }
+    fogSystem.replayStrokes(fogLayer.erasedStrokes ?? []);
   }
 
   updateZoomLabel();

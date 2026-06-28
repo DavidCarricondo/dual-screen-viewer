@@ -59,7 +59,7 @@ export function renderScene(
         break;
       case 'fog':
         if (fogSystem) {
-          fogSystem.draw(ctx, layer as FogLayer, mode, viewport);
+          fogSystem.draw(ctx, layer as FogLayer, mode, viewport, canvasWidth, canvasHeight);
         }
         break;
     }
